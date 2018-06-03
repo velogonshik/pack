@@ -1,0 +1,122 @@
+#!/bin/sh
+
+set -e
+
+# Developer: Ryabinin Sergey Vladimirovich
+# dev@brigar.ru
+
+PROG_NAME=pack
+
+PVERSION="0.0.7"
+PMAN="Ooops!\n
+Example use\n
+-----------\n
+Pack file or folder:\n
+${PROG_NAME} -f /bla/bla\n
+................\n
+Unpack:\n
+${PROG_NAME} -u bla.tar\n
+................\n
+Install this script:\n
+./${PROG_NAME} -i
+
+Pack and encrypt:\n
+................\n
+Pack and encrypt:\n
+${PROG_NAME} -e /bla/bla\n
+................\n
+Unpack edecryption file:\n
+${PROG_NAME} -d bla.tar.enc bla.tar\n
+"
+echo "version ${PVERSION}"
+
+OS_TYPE=$(uname)
+
+
+if [ $OS_TYPE = "Linux" ]; then
+CMD_SHA512="sha512sum"
+CMD_GET_UPDATE="curl -s"
+fi
+if [ $OS_TYPE = "FreeBSD" ]; then
+CMD_SHA512="sha512"
+CMD_GET_UPDATE="fetch"
+fi
+
+
+
+PackIt()
+{
+	if [ "$1" != "" ]; then
+	echo "Pack $1.tar";
+	tar -cvpf $1.tar $1
+	$CMD_SHA512 $1 > $1.SHA512
+	else
+	echo "Please set file or folder
+	${PROG_NAME} -f your_file"
+	fi
+}
+
+Encode()
+{
+	if [ "$1" != "" ]; then
+	echo "Encode and Pack $1.tar.enc";
+	tar -cvpf $1.tar $1 && openssl aes-256-cbc -a -salt -in $1.tar -out $1.tar.enc && rm $1.tar
+	$CMD_SHA512 $1 > $1.SHA512
+	else
+	echo "Please set file or folder
+	${PROG_NAME} -e your_file"
+	fi
+}
+
+Decode()
+{
+	if [ "$1" != "" ]; then
+	echo "decode and Unpack $1";
+	PIF=`echo $1 | sed 's/.tar.enc/.tar/g'`
+	openssl aes-256-cbc -d -a -in $1 -out $PIF && tar -xvpf $PIF && rm $PIF
+	else
+	echo "Please set file or folder
+	${PROG_NAME} -d your_file"
+	fi
+}
+
+Unpack()
+{
+	if [ "$1" != "" ]; then
+	echo "Unpack $1";
+	tar -xvpf $1
+	else
+	echo "Please set file or folder
+	${PROG_NAME} -u your_file"
+	fi
+}
+
+Install()
+{
+	echo "Install ${PROG_NAME} to /usr/bin/";
+	cp /tmp/${PROG_NAME} /usr/bin/
+	chmod +x /usr/bin/${PROG_NAME}
+}
+
+Update()
+{
+	$CMD_GET_UPDATE "https://raw.githubusercontent.com/velogonshik/${PROG_NAME}/master/${PROG_NAME}" -o /tmp/${PROG_NAME} && sh /tmp/./${PROG_NAME} -i
+}
+
+while getopts "feduin" opt
+do
+case $opt in
+	f) PackIt $2;;
+	e) Encode $2;;
+	d) Decode $2;;
+	u) Unpack $2;;
+	i) Install;;
+	n) Update;;
+esac
+done
+
+
+
+if [ "$1" = "" ]; then
+echo $PMAN
+fi
